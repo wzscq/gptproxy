@@ -1,0 +1,18 @@
+{
+  "service":{
+    "port":"0.0.0.0:80"
+  },
+  "accountCache":{
+    "server":"8.222.203.139:6479",
+    "password":"",
+    "db":11
+  },
+  "mqtt":{
+    "broker":"tcp://121.37.185.248:1983",
+    "password":"123456",
+    "user":"mosquitto",
+    "clientID":"gptproxy_client_1",
+    "redirectTopic":"weichatapp/redirect_weichat_message",
+    "billTopic":"weichatapp/gpt_bill_rec"
+  }
+}
