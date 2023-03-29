@@ -87,5 +87,4 @@ func (mqc *MQTTClient) Init(){
 	mqc.Client=mqc.getClient()
 	mqc.Client.Subscribe(mqc.RedirectTopic,0,mqc.onWeiChatMessage)
 	mqc.Client.Subscribe(mqc.BillTopic,0,mqc.onBillRecMessage)
-
 }
