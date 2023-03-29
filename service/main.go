@@ -25,13 +25,35 @@ func main() {
         log.Println(confFile)
     }
 
-    //初始化配置
-    conf:=common.InitConfig(confFile)
+  //初始化配置
+  conf:=common.InitConfig(confFile)
+
+	//初始化redis
+	accountCache:=&customer.AccountCache{
+		Server:conf.AccountCache.Server,
+		Password:conf.AccountCache.Password, 
+		DB:conf.AccountCache.DB,
+	}
+
+	//初始化数据库
+	repo:=&customer.DefatultRepository{}
+
+	repo.Connect(
+		conf.Mysql.Server,
+		conf.Mysql.User,
+		conf.Mysql.Password,
+		conf.Mysql.DBName,
+		conf.Mysql.ConnMaxLifetime,
+		conf.Mysql.MaxOpenConns,
+		conf.Mysql.MaxIdleConns)
 
 	//初始化消息处理器
-	messageHandler:=&customer.MessageHandler{}
+	messageHandler:=&customer.MessageHandler{
+		Repo:repo,
+		AccountCache:accountCache,
+	}
 	//mqttclient
-	mqttClient:=mqtt.MQTTClient{
+	mqttClient:=&mqtt.MQTTClient{
 		Broker:conf.MQTT.Broker,
 		User:conf.MQTT.User,
 		Password:conf.MQTT.Password,
@@ -41,6 +63,8 @@ func main() {
 		ClientID:conf.MQTT.ClientID,
 	}
 	mqttClient.Init()
+
+	messageHandler.MqttClient=mqttClient
 	
 	router := gin.Default()
 	router.Use(cors.New(cors.Config{

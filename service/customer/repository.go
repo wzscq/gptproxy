@@ -4,122 +4,79 @@ import (
 	"database/sql"
 	"github.com/go-sql-driver/mysql"
 	"log"
+    "time"
 )
 
 
 type Repository interface {
 	AddCustomer(id string)(error)
-	UpdateCustomer()(error)
-	getFaultCountByType()(*FaultTypeCount,error)
-	getFaultCountByStatus()(*FaultStatusCount,error)
-	getFaultList()([]map[string]interface{},error)
-	query(sql string)([]map[string]interface{},error)
-	closeFault(diagReport string,remark string)
+	DeactiveCustomer(id string)(error)
+	IncreaseUsedToken(id string,token int)(error)
+    GetUserToken(id string)(int,int,error)
 }
 
 type DefatultRepository struct {
 	DB *sql.DB
 }
 
-func (repo *DefatultRepository)query(sql string)([]map[string]interface{},error){
-	rows, err := repo.DB.Query(sql)
-	if err != nil {
-		log.Println(err)
-		return nil,nil
-	}
-	defer rows.Close()
-	//结果转换为map
-	return repo.toMap(rows)
+func (repo *DefatultRepository)Begin()(*sql.Tx, error){
+	return repo.DB.Begin()
 }
 
-func (repo *DefatultRepository)getCarCount()(int,error){
-	row := repo.DB.QueryRow("select count(*) as count from vehiclemanagement")
-    var count int = 0
-	if err := row.Scan(&count); err != nil {
-        log.Println("getCarCount error")
+func (repo *DefatultRepository)AddCustomer(id string)(error){
+    log.Printf("add customer:%s\n",id)
+    now:=time.Now().Format("2006-01-02 15:04:05")
+    //开启事务
+	tx,err:= repo.Begin()
+	if err != nil {
 		log.Println(err)
-        return 0,nil
+		return err
+	}
+
+	_,err=tx.Exec("INSERT INTO gpt_customer (id,update_time,create_time,update_user,create_user) VALUES (?,?,?,'sys','sys') ON DUPLICATE KEY UPDATE subscribe =1,version=version+1,update_time=?,update_user='sys'", id,now,now,now)
+    if err!=nil {
+        tx.Rollback()
+        return err
     }
-	return count, nil
+
+    _,err=tx.Exec("INSERT INTO gpt_customer_token (id,update_time,create_time,update_user,create_user) VALUES (?,?,?,'sys','sys') ON DUPLICATE KEY UPDATE version=version+1,update_time=?,update_user='sys'", id,now,now,now)
+    if err!=nil {
+        tx.Rollback()
+        return err
+    }
+    
+    //提交事务
+    err = tx.Commit(); 
+    return err
 }
 
-func (repo *DefatultRepository)toMap(rows *sql.Rows)([]map[string]interface{},error){
-	cols,_:=rows.Columns()
-	columns:=make([]interface{},len(cols))
-	colPointers:=make([]interface{},len(cols))
-	for i,_:=range columns {
-		colPointers[i] = &columns[i]
-	}
-
-	var list []map[string]interface{}
-	for rows.Next() {
-		err:= rows.Scan(colPointers...)
-		if err != nil {
-			log.Println(err)
-			return nil,nil
-		}
-		row:=make(map[string]interface{})
-		for i,colName :=range cols {
-			val:=colPointers[i].(*interface{})
-			switch (*val).(type) {
-			case []byte:
-				row[colName]=string((*val).([]byte))
-			default:
-				row[colName]=*val
-			} 
-		}
-		list=append(list,row)
-	}
-	return list,nil
+func (repo *DefatultRepository)DeactiveCustomer(id string)(error){
+    log.Printf("DeactiveCustomer customer:%s\n",id)
+    now:=time.Now().Format("2006-01-02 15:04:05")
+	_,err:=repo.DB.Exec("update gpt_customer set subscribe =0,version=version+1,update_user='sys',update_time=? where id=?", now,id)
+    return err
 }
 
-func (repo *DefatultRepository)getFaultList()([]map[string]interface{},error){
-	rows, err := repo.DB.Query("select * from  diag_result order by status asc,time desc limit 0,500")
-	if err != nil {
-		log.Println(err)
-		return nil,nil
-	}
-	defer rows.Close()
-	//结果转换为map
-	return repo.toMap(rows)
+func (repo *DefatultRepository)IncreaseUsedToken(id string,token int)(error){
+    now:=time.Now().Format("2006-01-02 15:04:05")
+	_,err:=repo.DB.Exec("update gpt_customer_token set  used=used+?,version=version+1,update_user='sys',update_time=?  where id=?",token,now,id)
+    return err
 }
 
-func (repo *DefatultRepository)getCarCountByProject()([]map[string]interface{},error){
-	rows, err := repo.DB.Query("select ProjectNum, count(*) as count from vehiclemanagement group by ProjectNum order by ProjectNum")
-	if err != nil {
-		log.Println(err)
-		return nil,nil
-	}
-	defer rows.Close()
-	//结果转换为map
-	return repo.toMap(rows) 
+func (repo *DefatultRepository)GetUserToken(id string)(int,int,error){
+    row:= repo.DB.QueryRow("select total,used from gpt_customer_token where id=?",id)
+
+    var total int
+    var used int
+    if err := row.Scan(&total,&used); err != nil {
+        return 0,0,err
+    }
+    return total,used,nil
 }
 
-func (repo *DefatultRepository)getFaultCountByType()(*FaultTypeCount,error){
-	var typeCount FaultTypeCount
-	row:= repo.DB.QueryRow("select sum(eps) as epsCount,sum(ibs) as ibsCount,sum(esc) as escCount from diag_result")
-	if err := row.Scan(&typeCount.EpsCount, &typeCount.IbsCount, &typeCount.EscCount); err != nil {
-        log.Println("getFaultCountByType error")
-		log.Println(err)
-    } 
-	return &typeCount, nil
-}
-
-func (repo *DefatultRepository)getFaultCountByStatus()(*FaultStatusCount,error){
-	var statusCount FaultStatusCount
-	row:= repo.DB.QueryRow("SELECT count(if(status=0,true,null)) as openCount,count(if(status=1,true,null)) as closedCount FROM diag_result")
-	if err := row.Scan(&statusCount.OpenCount, &statusCount.ClosedCount); err != nil {
-        log.Println("getFaultCountByType error")
-		log.Println(err)
-    } 
-	return &statusCount, nil
-}
-
-func (repo *DefatultRepository)closeFault(diagReport string,remark string){
-	repo.DB.Exec("update DiagResult set Status='1',Remark=? where DiagReport = ?", remark,diagReport)
-}
-
-func (repo *DefatultRepository)Connect(server string,user string,password string,dbName string){
+func (repo *DefatultRepository)Connect(
+	server,user,password,dbName string,
+	connMaxLifetime,maxOpenConns,maxIdleConns int){ 
 	// Capture connection properties.
     cfg := mysql.Config{
         User:   user,
@@ -140,5 +97,9 @@ func (repo *DefatultRepository)Connect(server string,user string,password string
     if pingErr != nil {
         log.Fatal(pingErr)
     }
+		
+    repo.DB.SetConnMaxLifetime(time.Minute * time.Duration(connMaxLifetime))
+	repo.DB.SetMaxOpenConns(maxOpenConns)
+	repo.DB.SetMaxIdleConns(maxIdleConns)
     log.Println("connect to mysql server "+server)
 }

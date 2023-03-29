@@ -10,6 +10,16 @@ type serviceConf struct {
 	Port string `json:"port"`
 }
 
+type mysqlConf struct {
+	Server string `json:"server"`
+	Password string `json:"password"`
+	User string `json:"user"`
+	DBName string `json:"dbName"`
+	ConnMaxLifetime int `json:"connMaxLifetime"` 
+  MaxOpenConns int `json:"maxOpenConns"`
+  MaxIdleConns int `json:"maxIdleConns"`
+}
+
 type AccountCacheConf struct {
 	Server string `json:"server"`
 	Password string `json:"password"`
@@ -29,6 +39,7 @@ type Config struct {
 	Service serviceConf `json:"service"`
 	AccountCache AccountCacheConf `json:"accountCache"`
 	MQTT mqttConf `json:"mqtt"`
+	Mysql  mysqlConf  `json:"mysql"`
 }
 
 var gConfig Config

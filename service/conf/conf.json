@@ -14,5 +14,14 @@
     "clientID":"gptproxy_client_1",
     "redirectTopic":"weichatapp/redirect_weichat_message",
     "billTopic":"weichatapp/gpt_bill_rec"
+  },
+  "mysql":{
+    "server":"121.37.185.248:4306",
+    "password":"123456",
+    "user":"root",
+    "dbName":"gpt_proxy",
+    "connMaxLifetime":60,
+    "maxOpenConns":10,
+    "maxIdleConns":10
   }
 }
