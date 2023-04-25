@@ -1,1 +1,1 @@
-docker run --name weichatapp -p80:80 -v /root/weichatapp/conf:/services/weichatapp/conf  wangzhsh/weichatapp:0.1.0
+docker run --name gptproxy -p8090:80 -v /root/gptproxy/conf:/services/gptproxy/conf  wangzhsh/gptproxy:0.1.0
