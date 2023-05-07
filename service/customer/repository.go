@@ -74,6 +74,23 @@ func (repo *DefatultRepository)GetUserToken(id string)(int,int,error){
     return total,used,nil
 }
 
+func (repo *DefatultRepository)GetUserAccessToken(id string)(string,string,error){
+    row:= repo.DB.QueryRow("select weichat_access_token as accessToken,weichat_refresh_token as refreshToken from gpt_customer where id=?",id)
+
+    var accessToken string
+    var refreshToken string
+    if err := row.Scan(&accessToken,&refreshToken); err != nil {
+        return "","",err
+    }
+    return total,used,nil
+}
+
+func (repo *DefatultRepository)UpdateUserAccessToken(id string,accessToken string,refreshToken string)(error){
+    now:=time.Now().Format("2006-01-02 15:04:05")
+    _,err:=repo.DB.Exec("update gpt_customer set  weichat_access_token=?,weichat_refresh_token=?,version=version+1,update_user='sys',update_time=?  where id=?",accessToken,refreshToken,now,id)
+    return err
+}
+
 func (repo *DefatultRepository)Connect(
 	server,user,password,dbName string,
 	connMaxLifetime,maxOpenConns,maxIdleConns int){ 

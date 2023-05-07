@@ -14,13 +14,13 @@ type AccountCache struct {
 }
 
 func (this *AccountCache)GetRedisClient()(*redis.Client){
-	if this.client==nil{
+	//if this.client==nil{
 		this.client=redis.NewClient(&redis.Options{
 			Addr:     this.Server,
 			Password: this.Password, 
 			DB:       this.DB,  
 		})
-	}
+	//}
 	//初始化redis
 	return this.client
 }

@@ -47,7 +47,8 @@ func (m *MessageHandler)DealWeiChatMessage(msg []byte){
 	//更新用户状态
 	if message.MsgType=="event" {
 		log.Printf("event type:%s\n",message.Event)
-		if message.Event=="subscribe" {
+		if message.Event=="subscribe"||
+			 message.Event=="SCAN" {
 			err:=m.Repo.AddCustomer(message.FromUserName)
 			if err != nil {
 				log.Println(err)
@@ -59,7 +60,8 @@ func (m *MessageHandler)DealWeiChatMessage(msg []byte){
 			} else {
 				m.AccountCache.AddAccount(message.FromUserName,total,useed)
 			}
-		}else if message.Event=="unsubscribe" {
+			//检查用户accessToken是否过期，如果过期，需要引导用户重新获取
+		} else if message.Event=="unsubscribe" {
 			err:=m.Repo.DeactiveCustomer(message.FromUserName)
 			if err != nil {
 				log.Println(err)
@@ -70,11 +72,12 @@ func (m *MessageHandler)DealWeiChatMessage(msg []byte){
 
 		//如果给了扫码场景信息，那么就发送一个消息到MQ
 		if message.EventKey!="" {
-			eventKey:=message.EventKey
-			if strings.Contains(eventKey,"qrscene_") {
-				eventKey=strings.Replace(eventKey,"qrscene_","",-1)
-			}
-			m.MqttClient.Publish("qrlogin/"+eventKey,message.FromUserName)
+			//获取用户信息，更新用户的ACCESS_TOKEN
+				eventKey:=message.EventKey
+				if strings.Contains(eventKey,"qrscene_") {
+					eventKey=strings.Replace(eventKey,"qrscene_","",-1)
+				}
+				m.MqttClient.Publish("qrlogin/"+eventKey,message.FromUserName)
 		}
 
 		return
